@@ -110,7 +110,7 @@ tree4 <- tree3 %<+% data4 + geom_tiplab2(size=2, offset=0.25)  + geom_tippoint(s
 tree5 <- tree4 %<+% data2 + geom_tiplab2(aes(color=foraged))
 print(tree4)
 print(tree4) + geom_treescale(x=20, y=1,color = "black", offset = NULL, fontsize = 0.2, linesize = 0.2)
-ggsave("/Users/Manasee/OneDrive/Documents/Phylocom/redo/scaledtree.jpg")
+ggsave("scaledtree.jpg")
 
 
 
