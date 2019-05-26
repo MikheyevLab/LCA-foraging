@@ -1,0 +1,79 @@
+---
+title: "Using mixed models to study leaf-cutting ant foraging"
+author: "Sasha Mikheyev and Manasee Weerathunga"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(ape)
+library(tidybayes)
+library(brms)
+library(ggtree)
+```
+
+# Mixed model
+
+```{r full_model, cache = T}
+speciesdat <- read_csv("completedataR.csv") %>% transmute(Species = gsub(" ", "_", Species), DBH =  DBH, Colony = Colony, Foraged = Foraged, Distance = Distance, Succession = Succession) %>% dplyr::distinct()
+tre <- read.nexus("treenew.nexus") #Output from Phylomatic
+
+inv.phylo <- MCMCglmm::inverseA(tre, nodes = "TIPS", scale = FALSE)
+A <- solve(inv.phylo$Ainv)
+rownames(A) <- rownames(inv.phylo$Ainv)
+priorscomplete <- get_prior(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species), data = speciesdat, family = bernoulli())
+priorscomplete$prior[1:3] <- "normal(0,10)" # make priors even flatter
+priorscomplete$prior[6:9] <- "normal(0,10)"
+complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), save_all_pars = TRUE, cores = 4, control = list(adapt_delta = 0.9), prior = priorscomplete)
+summary(complete)
+plot(complete)
+bayes_R2(complete)
+```
+
+## phylogenetic effect
+
+We are are also testing the hypothesis that there is no phylogenetic effect (ignoring all other factors), following [Nakagawa and Schielzeth's (2012)](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/j.2041-210x.2012.00261.x%4010.1111/%28ISSN%292041-210X.STATSTOO) Table 2 for distribution-specific variance.
+
+```{r reduced_models, cache = TRUE}
+phylo_only <- brm(Foraged ~ (1 | Species), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9))
+
+bayes_R2(phylo_only)
+
+hyp <- paste("sd_Species__Intercept /", "(sd_Species__Intercept + 3.141593^(2/3)) = 0")
+(hyp <- hypothesis(phylo_only, hyp, class = NULL))
+plot(hyp)
+
+no_phylo <- brm(Foraged ~ DBH + Distance + (1 | Colony), data = speciesdat, family = bernoulli, cores = 4, control = list(adapt_delta = 0.9))
+```
+
+
+## Assessing model fit with and without phylogenetic effects
+
+```{r comparison, cache = TRUE}
+loo(complete, phylo_only, no_phylo)
+```
+
+We find that the complete model has the best fit to the data
+
+## Diagnostics
+
+We look at the [Pareto k diagnostic values](https://mc-stan.org/loo/reference/pareto-k-diagnostic.html), which should be below 0.7
+
+```{r diagnostics, cache = T}
+plot(loo(complete))
+```
+
+We see that the estimation is robust.
+
+## Palatability coefficients
+
+UsingWe can look a the coefficients of individual species, which correspond to how likely an they are to be foraged, aftera accounting for all the otehr factors, like the phylogenetic effect.
+
+```{r}
+
+palatcoef <- complete %>% spread_draws(b_Intercept, r_Species[Species ]) %>% group_by(Species) %>% 
+  median_qi(Species_mean =  r_Species) %>% mutate(Species = gsub("_"," ", Species))
+ggplot(palatcoef, aes(Species_mean)) +geom_histogram() + theme_minimal() 
+```
+
