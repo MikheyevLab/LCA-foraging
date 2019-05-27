@@ -5,7 +5,7 @@ output: html_document
 ---
 
 
-```{r}
+```{r message=FALSE}
 library(tidyverse)
 library(ape)
 library(tidybayes)
@@ -13,9 +13,7 @@ library(brms)
 library(ggtree)
 ```
 
-# Mixed model
-
-
+## Mixed model
 
 ```{r full_model, cache = T}
 speciesdat <- read_csv("completedataR.csv") 
@@ -73,5 +71,4 @@ p1 <- ggtree(t2, layout = 'fan') %<+% plotdat + geom_tiplab2(aes(label=paste0('i
 p2 <- gheatmap(p1, plotdat[,"Species_mean", drop=FALSE], offset = -1, width=0.05, colnames=FALSE, colnames_position = "bottom") + scale_fill_gradient2(low = "black", mid = "white", high = "red", midpoint = 0) + theme(legend.position = "bottom") 
 print(p2)
 #ggsave("figures/tree.pdf", height = 8, width = 8)
-
 ```
