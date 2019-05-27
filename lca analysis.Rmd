@@ -15,17 +15,17 @@ library(ggtree)
 
 # Mixed model
 
+
+
 ```{r full_model, cache = T}
-speciesdat <- read_csv("completedataR.csv") %>% transmute(Species = gsub(" ", "_", Species), DBH =  DBH, Colony = Colony, Foraged = Foraged, Distance = Distance, Succession = Succession) %>% dplyr::distinct()
+speciesdat <- read_csv("completedataR.csv") 
 tre <- read.nexus("treenew.nexus") #Output from Phylomatic
 
 inv.phylo <- MCMCglmm::inverseA(tre, nodes = "TIPS", scale = FALSE)
 A <- solve(inv.phylo$Ainv)
 rownames(A) <- rownames(inv.phylo$Ainv)
-priorscomplete <- get_prior(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species), data = speciesdat, family = bernoulli())
-priorscomplete$prior[1:3] <- "normal(0,10)" # make priors even flatter
-priorscomplete$prior[6:9] <- "normal(0,10)"
-complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), save_all_pars = TRUE, cores = 4, control = list(adapt_delta = 0.9), prior = priorscomplete)
+priorscomplete <- get_prior(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species) + (1 | TAG), data = speciesdat, family = bernoulli())
+complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species) + (1 | TAG), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), save_all_pars = TRUE, cores = 4, control = list(adapt_delta = 0.9), prior = priorscomplete, iter = 4000)
 summary(complete)
 plot(complete)
 bayes_R2(complete)
@@ -43,37 +43,35 @@ bayes_R2(phylo_only)
 hyp <- paste("sd_Species__Intercept /", "(sd_Species__Intercept + 3.141593^(2/3)) = 0")
 (hyp <- hypothesis(phylo_only, hyp, class = NULL))
 plot(hyp)
-
-no_phylo <- brm(Foraged ~ DBH + Distance + (1 | Colony), data = speciesdat, family = bernoulli, cores = 4, control = list(adapt_delta = 0.9))
-```
-
-
-## Assessing model fit with and without phylogenetic effects
-
-```{r comparison, cache = TRUE}
-loo(complete, phylo_only, no_phylo)
 ```
 
 We find that the complete model has the best fit to the data
-
-## Diagnostics
-
-We look at the [Pareto k diagnostic values](https://mc-stan.org/loo/reference/pareto-k-diagnostic.html), which should be below 0.7
-
-```{r diagnostics, cache = T}
-plot(loo(complete))
-```
-
-We see that the estimation is robust.
 
 ## Palatability coefficients
 
 UsingWe can look a the coefficients of individual species, which correspond to how likely an they are to be foraged, aftera accounting for all the otehr factors, like the phylogenetic effect.
 
-```{r}
-
+```{r plot_palatability}
 palatcoef <- complete %>% spread_draws(b_Intercept, r_Species[Species ]) %>% group_by(Species) %>% 
   median_qi(Species_mean =  r_Species) %>% mutate(Species = gsub("_"," ", Species))
-ggplot(palatcoef, aes(Species_mean)) +geom_histogram() + theme_minimal() 
+ggplot(palatcoef, aes(Species_mean)) +geom_histogram() + theme_minimal() + xlab("Palatability coefficients") + ylab("Number of tree species")
+#ggsave("figures/palatbility.pdf", height = 5, width = 5)
 ```
 
+```{r}
+plotdat1 <- read.csv("dataforplot.csv")
+plotdat2 <- data.frame(label=plotdat1$Species, Foraging_preference=plotdat1$foraged, Palatability_coefficient=plotdat1$Species_mean)
+row.names(plotdat2) <- plotdat2[,1]
+
+plotdat <- as.data.frame(speciesdat %>% group_by(Species) %>% summarize(Foraged = as.factor(max(Foraged))) %>% ungroup() %>% mutate(Species = gsub("_", " ", Species)) %>% select(Species, Foraged) %>% na.omit() %>% left_join(palatcoef %>% select(Species, Species_mean)))
+row.names(plotdat) <- plotdat$Species
+
+t2 <- tre 
+t2$tip.label <- gsub("_", " ", t2$tip.label)
+
+p1 <- ggtree(t2, layout = 'fan') %<+% plotdat + geom_tiplab2(aes(label=paste0('italic(\'', label, '\')'), color=Foraged), size = 2, offset=0.5, parse = TRUE) + scale_color_manual(values = c("black", "red"))
+p2 <- gheatmap(p1, plotdat[,"Species_mean", drop=FALSE], offset = -1, width=0.05, colnames=FALSE, colnames_position = "bottom") + scale_fill_gradient2(low = "black", mid = "white", high = "red", midpoint = 0) + theme(legend.position = "bottom") 
+print(p2)
+#ggsave("figures/tree.pdf", height = 8, width = 8)
+
+```
