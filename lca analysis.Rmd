@@ -11,6 +11,7 @@ library(ape)
 library(tidybayes)
 library(brms)
 library(ggtree)
+library(sjPlot)
 ```
 
 ## Mixed model
@@ -27,6 +28,7 @@ complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species) + (1 | T
 summary(complete)
 plot(complete)
 bayes_R2(complete)
+tab_model(complete, show.intercept = FALSE, show.r2 = TRUE)
 ```
 
 ## phylogenetic effect
