@@ -17,7 +17,7 @@ library(sjPlot)
 ## Mixed model
 
 ```{r full_model, cache = T}
-speciesdat <- read_csv("completedataR.csv") 
+speciesdat <- read_csv("completedataR.csv")
 tre <- read.nexus("treenew.nexus") #Output from Phylomatic
 
 inv.phylo <- MCMCglmm::inverseA(tre, nodes = "TIPS", scale = FALSE)
@@ -27,13 +27,10 @@ priorscomplete <- get_prior(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Speci
 complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species) + (1 | TAG), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), save_all_pars = TRUE, cores = 4, control = list(adapt_delta = 0.9), prior = priorscomplete, iter = 4000)
 summary(complete)
 plot(complete)
-<<<<<<< .merge_file_kGwCd3
 r2 <- list()
 (r2[["complete"]] <- bayes_R2(complete))
-=======
-bayes_R2(complete)
 tab_model(complete, show.intercept = FALSE, show.r2 = TRUE)
->>>>>>> .merge_file_uzGwX0
+
 ```
 
 ## Reduced models
@@ -96,7 +93,7 @@ We find that the complete model has the best fit to the data
 UsingWe can look a the coefficients of individual species, which correspond to how likely an they are to be foraged, aftera accounting for all the otehr factors, like the phylogenetic effect.
 
 ```{r plot_palatability}
-palatcoef <- complete %>% spread_draws(b_Intercept, r_Species[Species ]) %>% group_by(Species) %>% 
+palatcoef <- complete %>% spread_draws(b_Intercept, r_Species[Species ]) %>% group_by(Species) %>%
   median_qi(Species_mean =  r_Species) %>% mutate(Species = gsub("_"," ", Species))
 ggplot(palatcoef, aes(Species_mean)) +geom_histogram() + theme_minimal() + xlab("Palatability coefficients") + ylab("Number of tree species")
 #ggsave("figures/palatbility.pdf", height = 5, width = 5)
@@ -106,11 +103,11 @@ ggplot(palatcoef, aes(Species_mean)) +geom_histogram() + theme_minimal() + xlab(
 plotdat <- as.data.frame(speciesdat %>% group_by(Species) %>% summarize(Foraged = as.factor(max(Foraged))) %>% ungroup() %>% mutate(Species = gsub("_", " ", Species)) %>% select(Species, Foraged) %>% na.omit() %>% left_join(palatcoef %>% select(Species, Species_mean)))
 row.names(plotdat) <- plotdat$Species
 
-t2 <- tre 
+t2 <- tre
 t2$tip.label <- gsub("_", " ", t2$tip.label)
 
 p1 <- ggtree(t2, layout = 'fan') %<+% plotdat + geom_tiplab2(aes(label=paste0('italic(\'', label, '\')'), color=Foraged), size = 2, offset=0.5, parse = TRUE) + scale_color_manual(values = c("black", "red"))
-p2 <- gheatmap(p1, plotdat[,"Species_mean", drop=FALSE], offset = -1, width=0.05, colnames=FALSE, colnames_position = "bottom") + scale_fill_gradient2(low = "black", mid = "white", high = "red", midpoint = 0) + theme(legend.position = "bottom") 
+p2 <- gheatmap(p1, plotdat[,"Species_mean", drop=FALSE], offset = -1, width=0.05, colnames=FALSE, colnames_position = "bottom") + scale_fill_gradient2(low = "black", mid = "white", high = "red", midpoint = 0) + theme(legend.position = "bottom")
 print(p2)
 #ggsave("figures/tree.pdf", height = 8, width = 8)
 ```
