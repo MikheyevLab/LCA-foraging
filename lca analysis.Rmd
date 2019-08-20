@@ -26,8 +26,48 @@ priorscomplete <- get_prior(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Speci
 complete <- brm(Foraged ~ DBH + Distance + (1 | Colony) + (1 | Species) + (1 | TAG), data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), save_all_pars = TRUE, cores = 4, control = list(adapt_delta = 0.9), prior = priorscomplete, iter = 4000)
 summary(complete)
 plot(complete)
-bayes_R2(complete)
+r2 <- list()
+(r2[["complete"]] <- bayes_R2(complete))
 ```
+
+## Reduced models
+
+Compute R2 for reduced models to estimate how big individual effects are
+
+```{r cache=T, message=F}
+# colony
+form <- formula(Foraged ~  (1 | Colony))
+priors <- get_prior(form, data = speciesdat, family = bernoulli())
+reduced <- brm(form, data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9), prior = priors, iter = 4000)
+r2[["colony"]] <- bayes_R2(reduced)
+
+# species effect
+form <- formula(Foraged ~ (1 | Species) )
+priors <- get_prior(form, data = speciesdat, family = bernoulli())
+reduced <- brm(form, data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9), prior = priors, iter = 4000)
+r2[["species"]] <- bayes_R2(reduced)
+
+# tag effect
+form <- formula(Foraged ~  (1 | TAG) )
+priors <- get_prior(form, data = speciesdat, family = bernoulli())
+reduced <- brm(form, data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9), prior = priors, iter = 4000)
+r2[["tag"]] <- bayes_R2(reduced)
+
+# DBH effect
+form <- formula(Foraged ~  DBH)
+priors <- get_prior(form, data = speciesdat, family = bernoulli())
+reduced <- brm(form, data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9), prior = priors, iter = 4000)
+r2[["dbh"]] <- bayes_R2(reduced)
+
+# distance effect
+form <- formula(Foraged ~ Distance)
+priors <- get_prior(form, data = speciesdat, family = bernoulli())
+reduced <- brm(form, data = speciesdat, family = bernoulli, cov_ranef = list(phylo = A), cores = 4, control = list(adapt_delta = 0.9), prior = priors, iter = 4000)
+r2[["distance"]] <- bayes_R2(reduced)
+
+r2
+```
+
 
 ## phylogenetic effect
 
